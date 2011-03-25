@@ -10,7 +10,7 @@
 (function(ns) {
     var ID3 = ns.ID3 = {};
     
-    var _files = {};
+    var _file = {};
     // location of the format identifier
     var _formatIDRange = [0, 7];
     
@@ -26,12 +26,14 @@
     
     function readTags(reader, data, url, tags) {
         var tagsFound = reader.readTagsFromData(data, tags);
-        //console.log("Downloaded data: " + data.getDownloadedBytesCount() + "bytes");
-        var tags = _files[url] || {};
-        for( var tag in tagsFound ) if( tagsFound.hasOwnProperty(tag) ) {
-            tags[tag] = tagsFound[tag];
+        var tags = _file || {};
+        for( var tag in tagsFound ) {
+            if( tagsFound.hasOwnProperty(tag) ) {
+                tags[tag] = tagsFound[tag];
+            }
         }
-        _files[url] = tags;
+        _file = tags;
+        _file["md5"] = md5(data.getRawData());
     }
 
     /**
@@ -39,37 +41,34 @@
      * @param {function()} cb The callback function to be invoked when all tags have been read.
      * @param {{tags: Array.<string>, dataReader: function(string, function(BinaryReader))}} options The set of options that can specify the tags to be read and the dataReader to use in order to read the file located at url.
      */
-    ID3.loadTags = function(url, cb, options) {
+    ID3.loadTags = function(file, cb, options) {
         options = options || {};
-        var dataReader = options["dataReader"] || BufferedBinaryAjax;
+        var dataReader = options["dataReader"] || new BinaryFile(file);
         
-        dataReader(url, function(data) {
-            // preload the format identifier
-            data.loadRange(_formatIDRange, function() {
-                var reader = getTagReader(data);
-                reader.loadData(data, function() {
-                    readTags(reader, data, url, options["tags"]);
-                    if( cb ) cb();
-                });
+        // preload the format identifier
+        dataReader.loadRange(_formatIDRange, function() {
+            var reader = getTagReader(dataReader);
+            reader.loadData(dataReader, function() {
+                readTags(reader, dataReader, file, options["tags"]);
+                if( cb ) cb();
             });
-        });     
+        });
     };
 
-    ID3.getAllTags = function(url) {
-        if (!_files[url]) return null;
+    ID3.getAllTags = function() {
+        if (!_file) return null;
         
         var tags = {};
-        for (var a in _files[url]) {
-            if (_files[url].hasOwnProperty(a))
-                tags[a] = _files[url][a];
+        for (var a in _file) {
+            if (_file.hasOwnProperty(a))
+                tags[a] = _file[a];
         }
         return tags;
     };
 
-    ID3.getTag = function(url, tag) {
-        if (!_files[url]) return null;
-
-        return _files[url][tag];
+    ID3.getTag = function(tag) {
+        if (!_file) return null;
+        return _file[tag];
     };
     
     // Export functions for closure compiler

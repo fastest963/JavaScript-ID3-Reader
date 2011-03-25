@@ -145,113 +145,68 @@ var BinaryFile = function(strData, iDataOffset, iDataLength) {
 var BinaryAjax = (function() {
 
 	function createRequest() {
-		var oHTTP = null;
-		if (window.XMLHttpRequest) {
-			oHTTP = new XMLHttpRequest();
-		} else if (window.ActiveXObject) {
-			oHTTP = new ActiveXObject("Microsoft.XMLHTTP");
+		var reader = null;
+		if (window.FileReader) {
+			reader = new FileReader();
 		}
-		return oHTTP;
+		return reader;
 	}
-
-	function getHead(strURL, fncCallback, fncError) {
-		var oHTTP = createRequest();
-		if (oHTTP) {
-			if (fncCallback) {
-				if (typeof(oHTTP.onload) != "undefined") {
-					oHTTP.onload = function() {
-						if (oHTTP.status == "200") {
-							fncCallback(this);
-						} else {
-							if (fncError) fncError();
-						}
-						oHTTP = null;
-					};
-				} else {
-					oHTTP.onreadystatechange = function() {
-						if (oHTTP.readyState == 4) {
-							if (oHTTP.status == "200") {
-								fncCallback(this);
-							} else {
-								if (fncError) fncError();
-							}
-							oHTTP = null;
-						}
-					};
-				}
-			}
-			oHTTP.open("HEAD", strURL, true);
-			oHTTP.send(null);
-		} else {
-			if (fncError) fncError();
-		}
-	}
-
+    
 	function sendRequest(strURL, fncCallback, fncError, aRange, bAcceptRanges, iFileSize) {
-		var oHTTP = createRequest();
-		if (oHTTP) {
-
-			var iDataOffset = 0;
-			if (aRange && !bAcceptRanges) {
-				iDataOffset = aRange[0];
-			}
-			var iDataLen = 0;
-			if (aRange) {
-				iDataLen = aRange[1]-aRange[0]+1;
-			}
-
+		var reader = createRequest();
+        var binaryResponse = new BinaryFile("", 0, 0);
+        
+		if (reader) {
 			if (fncCallback) {
-				if (typeof(oHTTP.onload) != "undefined") {
-					oHTTP.onload = function() {
-
-						if (oHTTP.status == "200" || oHTTP.status == "206") {
-							this.binaryResponse = new BinaryFile(this.responseText, iDataOffset, iDataLen);
-							this.fileSize = iFileSize || this.getResponseHeader("Content-Length");
-							fncCallback(this);
-						} else {
-							if (fncError) fncError();
-						}
-						oHTTP = null;
-					};
-				} else {
-					oHTTP.onreadystatechange = function() {
-						if (oHTTP.readyState == 4) {
-							if (oHTTP.status == "200" || oHTTP.status == "206") {
-								this.binaryResponse = new BinaryFile(oHTTP.responseBody, iDataOffset, iDataLen);
-								this.fileSize = iFileSize || this.getResponseHeader("Content-Length");
-								fncCallback(this);
-							} else {
-								if (fncError) fncError();
-							}
-							oHTTP = null;
-						}
+				if (typeof(reader.onload) != "undefined") {
+					reader.onload = function(e) {
+					    if (e.target.readyState == FileReader.DONE) {
+                            this.fileSize = (e.target.result).length;
+                            binaryResponse = new BinaryFile(e.target.result, 0, this.fileSize);                            
+                            
+                            for( var key in binaryResponse ) {
+                                if( binaryResponse.hasOwnProperty(key) &&
+                                    typeof binaryResponse[key] === "function") {
+                                    this[key] = binaryResponse[key];
+                                }
+                            }
+                            
+                            binaryResponse.loadRange = function(range, callback) {
+                                callback();
+                            };
+                            
+                            fncCallback(binaryResponse);
+                            reader = null;
+                        }
 					};
 				}
+                if (typeof(reader.onload) != "undefined") {
+                    reader.onerror = function(evt) {
+                        var msg = 'Error ' + evt.target.error.code;
+                        switch (evt.target.error.code) {
+                            case FileError.NOT_READABLE_ERR:
+                            msg += ': NOT_READABLE_ERR';
+                            break;
+                        };
+                        alert(msg);
+                        if (fncError) fncError();
+                    };
+                }
 			}
-			oHTTP.open("GET", strURL, true);
-
-			if (oHTTP.overrideMimeType) oHTTP.overrideMimeType('text/plain; charset=x-user-defined');
-
-			if (aRange && bAcceptRanges) {
-				oHTTP.setRequestHeader("Range", "bytes=" + aRange[0] + "-" + aRange[1]);
-			}
-
-			oHTTP.setRequestHeader("If-Modified-Since", "Sat, 1 Jan 1970 00:00:00 GMT");
-
-			oHTTP.send(null);
+            reader.readAsBinaryString(strURL);
 		} else {
 			if (fncError) fncError();
 		}
 	}
+    
+    return function(strURL, fncCallback, fncError, aRange) {
 
-	return function(strURL, fncCallback, fncError, aRange) {
-
-		if (aRange) {
+		/*if (aRange) {
 			getHead(
 				strURL, 
-				function(oHTTP) {
-					var iLength = parseInt(oHTTP.getResponseHeader("Content-Length"),10) || -1;
-					var strAcceptRanges = oHTTP.getResponseHeader("Accept-Ranges");
+				function(reader) {
+					var iLength = parseInt(reader.getResponseHeader("Content-Length"),10) || -1;
+					var strAcceptRanges = reader.getResponseHeader("Accept-Ranges");
 
 					var iStart, iEnd;
 					iStart = aRange[0];
@@ -266,9 +221,9 @@ var BinaryAjax = (function() {
 				}
 			);
 
-		} else {
+		} else {*/
 			sendRequest(strURL, fncCallback, fncError);
-		}
+		//}
 	}
 
 }());
