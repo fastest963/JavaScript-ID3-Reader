@@ -1,6 +1,233 @@
 
 (function() {
 
+    /*
+     * jMd5
+     *
+     * Based off js implementation at http://www.myersdaily.org/joseph/javascript/md5-text.html
+     *
+     * To hash a string call window.jsMd5.hash("hello")
+     * If you wish to "stream" data use window.jsMd5.init(), window.jsMd5.update() and window.jsMd5.finalize()
+     *    It closely relates to how php's hash_init works
+     *
+     * Modified by James Hartig <fastest963@gmail.com>
+     */
+
+    var jMd5 = (function() {
+        function md5cycle(x, k) {
+            var a = x[0], b = x[1], c = x[2], d = x[3];
+
+            a = ff(a, b, c, d, k[0], 7, -680876936);
+            d = ff(d, a, b, c, k[1], 12, -389564586);
+            c = ff(c, d, a, b, k[2], 17,  606105819);
+            b = ff(b, c, d, a, k[3], 22, -1044525330);
+            a = ff(a, b, c, d, k[4], 7, -176418897);
+            d = ff(d, a, b, c, k[5], 12,  1200080426);
+            c = ff(c, d, a, b, k[6], 17, -1473231341);
+            b = ff(b, c, d, a, k[7], 22, -45705983);
+            a = ff(a, b, c, d, k[8], 7,  1770035416);
+            d = ff(d, a, b, c, k[9], 12, -1958414417);
+            c = ff(c, d, a, b, k[10], 17, -42063);
+            b = ff(b, c, d, a, k[11], 22, -1990404162);
+            a = ff(a, b, c, d, k[12], 7,  1804603682);
+            d = ff(d, a, b, c, k[13], 12, -40341101);
+            c = ff(c, d, a, b, k[14], 17, -1502002290);
+            b = ff(b, c, d, a, k[15], 22,  1236535329);
+
+            a = gg(a, b, c, d, k[1], 5, -165796510);
+            d = gg(d, a, b, c, k[6], 9, -1069501632);
+            c = gg(c, d, a, b, k[11], 14,  643717713);
+            b = gg(b, c, d, a, k[0], 20, -373897302);
+            a = gg(a, b, c, d, k[5], 5, -701558691);
+            d = gg(d, a, b, c, k[10], 9,  38016083);
+            c = gg(c, d, a, b, k[15], 14, -660478335);
+            b = gg(b, c, d, a, k[4], 20, -405537848);
+            a = gg(a, b, c, d, k[9], 5,  568446438);
+            d = gg(d, a, b, c, k[14], 9, -1019803690);
+            c = gg(c, d, a, b, k[3], 14, -187363961);
+            b = gg(b, c, d, a, k[8], 20,  1163531501);
+            a = gg(a, b, c, d, k[13], 5, -1444681467);
+            d = gg(d, a, b, c, k[2], 9, -51403784);
+            c = gg(c, d, a, b, k[7], 14,  1735328473);
+            b = gg(b, c, d, a, k[12], 20, -1926607734);
+
+            a = hh(a, b, c, d, k[5], 4, -378558);
+            d = hh(d, a, b, c, k[8], 11, -2022574463);
+            c = hh(c, d, a, b, k[11], 16,  1839030562);
+            b = hh(b, c, d, a, k[14], 23, -35309556);
+            a = hh(a, b, c, d, k[1], 4, -1530992060);
+            d = hh(d, a, b, c, k[4], 11,  1272893353);
+            c = hh(c, d, a, b, k[7], 16, -155497632);
+            b = hh(b, c, d, a, k[10], 23, -1094730640);
+            a = hh(a, b, c, d, k[13], 4,  681279174);
+            d = hh(d, a, b, c, k[0], 11, -358537222);
+            c = hh(c, d, a, b, k[3], 16, -722521979);
+            b = hh(b, c, d, a, k[6], 23,  76029189);
+            a = hh(a, b, c, d, k[9], 4, -640364487);
+            d = hh(d, a, b, c, k[12], 11, -421815835);
+            c = hh(c, d, a, b, k[15], 16,  530742520);
+            b = hh(b, c, d, a, k[2], 23, -995338651);
+
+            a = ii(a, b, c, d, k[0], 6, -198630844);
+            d = ii(d, a, b, c, k[7], 10,  1126891415);
+            c = ii(c, d, a, b, k[14], 15, -1416354905);
+            b = ii(b, c, d, a, k[5], 21, -57434055);
+            a = ii(a, b, c, d, k[12], 6,  1700485571);
+            d = ii(d, a, b, c, k[3], 10, -1894986606);
+            c = ii(c, d, a, b, k[10], 15, -1051523);
+            b = ii(b, c, d, a, k[1], 21, -2054922799);
+            a = ii(a, b, c, d, k[8], 6,  1873313359);
+            d = ii(d, a, b, c, k[15], 10, -30611744);
+            c = ii(c, d, a, b, k[6], 15, -1560198380);
+            b = ii(b, c, d, a, k[13], 21,  1309151649);
+            a = ii(a, b, c, d, k[4], 6, -145523070);
+            d = ii(d, a, b, c, k[11], 10, -1120210379);
+            c = ii(c, d, a, b, k[2], 15,  718787259);
+            b = ii(b, c, d, a, k[9], 21, -343485551);
+
+            x[0] = add32(a, x[0]);
+            x[1] = add32(b, x[1]);
+            x[2] = add32(c, x[2]);
+            x[3] = add32(d, x[3]);
+        }
+
+        function cmn(q, a, b, x, s, t) {
+            a = add32(add32(a, q), add32(x, t));
+            return add32((a << s) | (a >>> (32 - s)), b);
+        }
+
+        function ff(a, b, c, d, x, s, t) {
+            return cmn((b & c) | ((~b) & d), a, b, x, s, t);
+        }
+
+        function gg(a, b, c, d, x, s, t) {
+            return cmn((b & d) | (c & (~d)), a, b, x, s, t);
+        }
+
+        function hh(a, b, c, d, x, s, t) {
+            return cmn(b ^ c ^ d, a, b, x, s, t);
+        }
+
+        function ii(a, b, c, d, x, s, t) {
+            return cmn(c ^ (b | (~d)), a, b, x, s, t);
+        }
+
+        this.init = function() {
+            return [1732584193, -271733879, -1732584194, 271733878, 0, ""];
+        };
+
+        //progressive md51
+        this.update = function(state, s) {
+            if (!state) {
+                state = this.init();
+            }
+            state[4] += s.length;
+            //if we have trailing data
+            if (state[5] != "") {
+                s = state[5] + s;
+                state[5] = "";
+            }
+            for (var i=64; i<=s.length; i+=64) {
+                md5cycle(state, md5blk(s.substring(i-64, i)));
+            }
+            state[5] += s.substring(i-64);
+            return state;
+        };
+
+        this.finalize = function(state) {
+            var i, s = "", n = state[4];
+            //if we have trailing data
+            if (state[5] != "") {
+                s = state[5];
+                state[5] = "";
+                if (s.length >= 64) {
+                    state = this.update(state, s);
+                }
+            }
+
+            s = s.substr(-1 * (n % 64)); //get the difference at the end
+            var tail = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+            for (i=0; i<s.length; i++)
+                tail[i>>2] |= s.charCodeAt(i) << ((i%4) << 3);
+            tail[i>>2] |= 0x80 << ((i%4) << 3);
+            if (i > 55) {
+                md5cycle(state, tail);
+                for (i=0; i<16; i++) tail[i] = 0;
+            }
+            tail[14] = n*8;
+            md5cycle(state, tail);
+
+            state.pop(); //get rid of the data count
+            state.pop(); //get rid of the cache
+            return hex(state);
+        };
+
+        function md51(s) {
+            var n = s.length,
+            state = [1732584193, -271733879, -1732584194, 271733878], i;
+            for (i=64; i<=s.length; i+=64) {
+                md5cycle(state, md5blk(s.substring(i-64, i)));
+            }
+            s = s.substring(i-64);
+            var tail = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+            for (i=0; i<s.length; i++)
+                tail[i>>2] |= s.charCodeAt(i) << ((i%4) << 3);
+            tail[i>>2] |= 0x80 << ((i%4) << 3);
+            if (i > 55) {
+                md5cycle(state, tail);
+                for (i=0; i<16; i++) tail[i] = 0;
+            }
+            tail[14] = n*8;
+            md5cycle(state, tail);
+            return state;
+        }
+
+        function md5blk(s) { /* I figured global was faster.   */
+            var md5blks = [], i; /* Andy King said do it this way. */
+            for (i=0; i<64; i+=4) {
+                md5blks[i>>2] = s.charCodeAt(i)
+                + (s.charCodeAt(i+1) << 8)
+                + (s.charCodeAt(i+2) << 16)
+                + (s.charCodeAt(i+3) << 24);
+            }
+            return md5blks;
+        }
+
+        var hex_chr = '0123456789abcdef'.split('');
+
+        function rhex(n) {
+            var s='', j=0;
+            for(; j<4; j++)
+                s += hex_chr[(n >> (j * 8 + 4)) & 0x0F]
+                    + hex_chr[(n >> (j * 8)) & 0x0F];
+            return s;
+        }
+
+        function hex(x) {
+            for (var i=0; i<x.length; i++)
+                x[i] = rhex(x[i]);
+            return x.join('');
+        }
+
+        function add32(a, b) {
+            return (a + b) & 0xFFFFFFFF;
+        }
+
+        if (hex(md51('hello')) != '5d41402abc4b2a76b9719d911017c592') {
+            function add32(x, y) {
+                var lsw = (x & 0xFFFF) + (y & 0xFFFF),
+                    msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+                return (msw << 16) | (lsw & 0xFFFF);
+            }
+        }
+
+        this.hash = function(s) {
+            return hex(md51(s));
+        };
+
+        return this;
+    })();
+
     /**
     * Copyright (c) 2010, António Afonso <antonio.afonso gmail.com>. All rights reserved.
     *
@@ -154,7 +381,12 @@
 
         loadData: function(dataReader, callback) {
             var length = dataReader.getLength();
-            dataReader.loadRange([length-128-1, length], callback);
+            dataReader.loadRange([length-128, length], callback);
+        },
+
+        getID3DataRange: function(dataReader, callback) {
+            var length = dataReader.getLength();
+            callback(length-128, length);
         },
 
         readTagsFromData: function(dataReader, tags) {
@@ -164,26 +396,26 @@
                 return foundTags;
             }
             if (!tags || tags.title) {
-                foundTags.title = dataReader.getStringAt(offset + 3, 30).replace(/\0/g, "");
+                foundTags.title = dataReader.getStringAt(offset + 3, 30).replace(/\0|\s+$/g, "");
             }
             if (!tags || tags.artist) {
-                foundTags.artist = dataReader.getStringAt(offset + 33, 30).replace(/\0/g, "");
+                foundTags.artist = dataReader.getStringAt(offset + 33, 30).replace(/\0|\s+$/g, "");
             }
             if (!tags || tags.album) {
-                foundTags.album = dataReader.getStringAt(offset + 63, 30).replace(/\0/g, "");
+                foundTags.album = dataReader.getStringAt(offset + 63, 30).replace(/\0|\s+$/g, "");
             }
             if (!tags || tags.year) {
-                foundTags.year = dataReader.getStringAt(offset + 93, 4).replace(/\0/g, "");
+                foundTags.year = dataReader.getStringAt(offset + 93, 4).replace(/\0|\s+$/g, "");
             }
             if (!tags || tags.track || track.comment) {
-                foundTags.year = dataReader.getStringAt(offset + 93, 4).replace(/\0/g, "");
+                foundTags.year = dataReader.getStringAt(offset + 93, 4).replace(/\0|\s+$/g, "");
                 var trackFlag = dataReader.getByteAt(offset + 97 + 28);
                 if (trackFlag == 0) {
                     if (!tags || tags.track) {
-                        foundTags.comment = data.getStringAt(offset + 97, 28).replace(/\0/g, "");
+                        foundTags.comment = dataReader.getStringAt(offset + 97, 28).replace(/\0|\s+$/g, "");
                     }
                     if (!tags || tags.track) {
-                        foundTags.track = data.getByteAt(offset + 97 + 29);
+                        foundTags.track = dataReader.getByteAt(offset + 97 + 29);
                     }
                 } else {
                     foundTags.comment = "";
@@ -191,7 +423,7 @@
                 }
             }
             if (!tags || tags.genre) {
-                var genreIdx = data.getByteAt(offset + 97 + 30);
+                var genreIdx = dataReader.getByteAt(offset + 97 + 30);
                 if (genreIdx < 255) {
                     foundTags.genre = this._genres[genreIdx];
                 } else {
@@ -491,8 +723,15 @@
 
         loadData: function(dataReader, callback) {
             var f = this._readSynchsafeInteger32At;
-            dataReader.loadRange([0, 9], function() {
+            dataReader.loadRange([0, 10], function() {
                 dataReader.loadRange([0, f(6, dataReader)], callback);
+            });
+        },
+
+        getID3DataRange: function(dataReader, callback) {
+            var f = this._readSynchsafeInteger32At;
+            dataReader.loadRange([0, 10], function() {
+                callback(6, f(6, dataReader) + 10); //10 is the header size
             });
         },
 
@@ -500,7 +739,6 @@
         readTagsFromData: function(dataReader, tags) {
             var offset = 0,
                 major = dataReader.getByteAt(offset + 3);
-                //todo: figure out why we don't support 4+
             if (major > 4) { return {version: '2.' + major}; }
             var revision = dataReader.getByteAt(offset + 4),
                 unsynch = dataReader.isBitSetAt(offset + 5, 7),
@@ -566,6 +804,9 @@
         };
 
         this.getByteAt = function(iOffset) {
+            if (iOffset - loaded[0] >= 0) {
+                iOffset -= loaded[0]; //correct for loaded only string chunk
+            }
             return data.charCodeAt(iOffset) & 0xFF;
         };
 
@@ -579,6 +820,10 @@
 
         this.getLength = function() {
             return dataLength;
+        };
+
+        this.getLengthLoaded = function() {
+            return data.length;
         };
 
         this.isBitSetAt = function(iOffset, iBit) {
@@ -645,7 +890,7 @@
 
         this.getStringAt = function(iOffset, iLength) {
             var aStr = [];
-            for (var i=iOffset,j=0;i<iOffset+iLength;i++,j++) {
+            for (var i = iOffset, j = 0; i < iOffset + iLength; i++, j++) {
                 aStr[j] = String.fromCharCode(this.getByteAt(i));
             }
             return aStr.join("");
@@ -679,23 +924,25 @@
         };
 
         //sending 0,3 would load the first 3 characters
+        //force causes just the range to be fetched and not append or use existing range
         this.loadRange = function(range, callback) {
             if (!window.FileReader) {
+                if (callback) {
+                    callback(false);
+                }
                 return;
             }
             var reader = new FileReader();
 
             if (range) {
                 if (range.length == 1) {
-                    range = [0, range[1]];
+                    range = [range[0], dataLength-range[0]-1];
                 }
-                if (loaded[0] <= range[0] || loaded[1] >= range[0]) {
-                    if (loaded[1] >= range[1]) { //woo! we have all the data
-                        if (callback) {
-                            callback();
-                        }
-                        return;
+                if (loaded[0] <= range[0] && loaded[1] >= range[1]) { //woo! we have all the data
+                    if (callback) {
+                        callback(true);
                     }
+                    return;
                 }
                 // if they want to start outside, then just load that range
                 /* else if (range[1] < loaded[1]) {
@@ -703,36 +950,53 @@
                 }*/
             }
 
-            if (typeof(reader.onloadend) != "undefined") {
-                reader.onloadend = function(e) {
-                    if (e.target.readyState == FileReader.DONE) {
-                        data = e.target.result;
-                        loaded = [range[0], range[0] + data.length];
-                        if (callback) {
-                            callback();
-                        }
-                        reader = null;
+            if (typeof(reader.onloadend) == "undefined") {
+                if (callback) {
+                    callback(false);
+                }
+                return;
+            }
+            reader.onloadend = function(e) {
+                if (e.target.readyState == FileReader.DONE) {
+                    data = e.target.result;
+                    loaded = [range[0], range[0] + data.length];
+                    if (callback) {
+                        callback(true);
+                    }
+                    reader = null;
+                }
+            };
+
+            if (typeof(reader.onerror) != "undefined") {
+                reader.onerror = function(evt) {
+                    if (callback) {
+                        callback(false);
                     }
                 };
             }
-            if (typeof(reader.onerror) != "undefined") {
-                reader.onerror = function(evt) {
-                    //todo: do something
-                };
-            }
+
             var blob = file;
             if (range && range.length == 2) {
-                if (file.webkitSlice) {
+                if (file.slice) {
+                    blob = file.slice(range[0], range[1]);
+                } else if (file.webkitSlice) {
                     blob = file.webkitSlice(range[0], range[1]);
                 } else if (file.mozSlice) {
                     blob = file.mozSlice(range[0], range[1]);
                 }
             } else {
-                range = [0, file.length];
+                //default to just reading the whole file
+                range = [0, file.length-1];
             }
 
-            //note this is deprecated according to spec
-            reader.readAsBinaryString(blob);
+            try {
+                //note this is deprecated according to spec
+                reader.readAsBinaryString(blob);
+            } catch (e) {
+                if (callback) {
+                    callback(false);
+                }
+            }
         };
     };
 
@@ -747,32 +1011,163 @@
      */
 
     window.ID3 = {
-        loadTags: function(options) {
-            var dataReader = options.dataReader || new BinaryFile(options.file, options.stringData);
-
+        _loadFile: function(dataReader, callback, errback) {
             //load the format identifier
-            //preload the first 9 bytes for id3v2
-            dataReader.loadRange([0, 9], function() {
-                var reader = null,
-                    data = dataReader.getStringAt(0, 3);
-
-                if (data == "TAG") {
-                    reader = ID3v1;
-                } else if (data == "ID3") {
-                    reader = ID3v2;
-                } else {
-                    if (options.error) {
-                        options.error([]);
+            //preload the first 10 bytes for id3v2
+            dataReader.loadRange([0, 10], function(success) {
+                if (!success) {
+                    if (errback) {
+                        errback('readerror');
+                    } else {
+                        callback(null);
                     }
                     return;
                 }
 
-                reader.loadData(dataReader, function() {
-                    var tags = reader.readTagsFromData(dataReader, options.tags);
+                var data = dataReader.getStringAt(0, 3);
+                if (data == "ID3") {
+                    callback(ID3v2);
+                } else {
+                    //load the data here and when we do it later, it just won't do anything
+                    ID3v1.loadData(dataReader, function() {
+                        var offset = dataReader.getLengthLoaded() - 128;
+                        if (offset < 0) { //if we support file splitting
+                            offset = 0;
+                        }
+                        data = dataReader.getStringAt(offset, 3);
+                        if (data == "TAG") {
+                            callback(ID3v1);
+                        } else if (errback) {
+                            errback('unsupported');
+                        } else {
+                            callback(null);
+                        }
+                    });
+                }
+            });
+        },
+        loadTags: function(options) {
+            var dataReader = options.dataReader || new BinaryFile(options.file, options.stringData);
+            this._loadFile(dataReader, function(idReader) {
+                if (!idReader) { //failed to read
+                    //error would've been called in _loadFile if there was one
+                    if (options.success) {
+                        options.success({});
+                    }
+                    return;
+                }
+
+                idReader.loadData(dataReader, function() {
+                    var tags = idReader.readTagsFromData(dataReader, options.tags);
                     if (options.success) {
                         options.success(tags);
                     }
                 });
+            }, options.error);
+
+        },
+        //calculates md5 of the audio portion
+        calculateAudioHash: function(options) {
+
+            if (!window.binl_md5) {
+                if (options.error) {
+                    options.error('nomd5');
+                } else if (options.success) {
+                    options.success('');
+                }
+                return;
+            }
+
+            var dataReader = options.dataReader || new BinaryFile(options.file, options.stringData),
+
+                //todo: support ranges not at the end or start
+                calculateHash = function(start, end) {
+                    var initialRead = 0,
+                        bufferSize = 16384,
+                        sz = bufferSize, //tmp buffer
+                        fileSize = dataReader.getLength(),
+                        bytes, totalLength = 0,
+                        endOffsetID3v1 = 128; //there might be id3v1 tags at the end too
+
+                    //determine where we need to start/end
+                    if (start <= 6 && end && end < fileSize) { //6 is the initial ID3 identifier and then the next 3 determine how large the id3 tag is
+                        initialRead = end;
+                    }
+
+                    //recursively go through and calculate the hash
+                    var genHash = function(r, abcd, cb) {
+                        sz = bufferSize;
+
+                        if (r + sz > fileSize - endOffsetID3v1) { //if we are at the end only read whats left
+                            sz = fileSize - r - endOffsetID3v1;
+                        }
+
+                        //actually load data
+                        dataReader.loadRange([r, r + sz], function(success) {
+                            if (!success) {
+                                if (options.error) {
+                                    options.error('readerror');
+                                } else if (options.success) {
+                                    options.success('');
+                                }
+                                return;
+                            }
+
+                            bytes = dataReader.getRawData();
+
+                            abcd = jMd5.update(abcd, bytes);
+
+                            if (r + sz < fileSize - endOffsetID3v1) {
+                                genHash(r + sz, abcd, cb);
+                            } else {
+                                //now we check for id3v1
+                                r += sz;
+                                dataReader.loadRange([r, r + endOffsetID3v1], function(success) {
+                                    if (!success) {
+                                        if (options.error) {
+                                            options.error('readerror');
+                                        } else if (options.success) {
+                                            options.success('');
+                                        }
+                                        return;
+                                    }
+
+                                    if (dataReader.getStringAt(r, 3) !== "TAG") {
+                                        bytes = dataReader.getRawData();
+                                        bytes = bytes.substring(3); //grooveshark hashing sucks
+                                        abcd = jMd5.update(abcd, bytes);
+                                    }
+                                    cb(jMd5.finalize(abcd));
+                                });
+                            }
+                        });
+                    };
+
+                    genHash(initialRead, jMd5.init(), function(hash) {
+                        if (options.success) {
+                            options.success(hash);
+                        }
+                    });
+                };
+
+            this._loadFile(dataReader, function(idReader) {
+                if (!idReader) { //failed to read
+                    //error would've been called in _loadFile if there was one
+                    if (options.success) {
+                        options.success("");
+                    }
+                    return;
+                }
+
+                idReader.getID3DataRange(dataReader, calculateHash);
+            }, function(e) {
+                if (e == "unsupported") {
+                    calculateHash(-1, null);
+                } else if (options.error) {
+                    options.error(e);
+                } else if (options.success) {
+                    options.success("");
+                }
             });
         }
     };
