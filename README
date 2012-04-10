@@ -14,6 +14,7 @@ This library is not complete and there is still some features missing and/or goi
 
 * Unsynchronisation support
 * Support for other types of charsets, at the moment only latin1, UTF-8 and UTF-16 are supported, these are the ones defined in the specification. However, the usage of local charsets has been common for a long time specially in Russia, Japan and China. This support can be achieved using [chardet](http://github.com/aadsm/jschardet) and a proper string reader function.
+* Support for VBR (this requires loading a lot more of the file and checking lots of frames to compare)
 
 How To Use It
 -------------
@@ -54,7 +55,9 @@ Success will be sent an object like:
         year: string,
         comment: string,
         track: string,
-        genre: string
+        genre: string,
+        sampleRate: int(hz),
+        bitRate: int(kbps)
     }
 
 ### Currently supported frames on ID3:

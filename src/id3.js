@@ -1047,7 +1047,8 @@
             });
         },
         loadTags: function(options) {
-            var dataReader = options.dataReader || new BinaryFile(options.file, options.stringData);
+            var dataReader = options.dataReader || new BinaryFile(options.file, options.stringData),
+                getFileData = this._getFileData;
             this._loadFile(dataReader, function(idReader) {
                 if (!idReader) { //failed to read
                     //error would've been called in _loadFile if there was one
@@ -1059,12 +1060,108 @@
 
                 idReader.loadData(dataReader, function() {
                     var tags = idReader.readTagsFromData(dataReader, options.tags);
-                    if (options.success) {
-                        options.success(tags);
-                    }
+                    getFileData(dataReader, tags, function(fileData) {
+                        if (options.success) {
+                            options.success(fileData);
+                        }
+                    });
                 });
             }, options.error);
 
+        },
+        _getFileData: function(dataReader, fileData, callback) {
+            var bitRates = [
+                [0,0,0,0,0],
+                [32,32,32,32,8],
+                [64,48,40,48,16],
+                [96,56,48,56,24],
+                [128,64,56,64,32],
+                [160,80,64,80,40],
+                [192,96,80,96,48],
+                [224,112,96,112,56],
+                [256,128,112,128,64],
+                [288,160,128,144,80],
+                [320,192,160,160,96],
+                [352,224,192,176,112],
+                [384,256,224,192,128],
+                [416,320,256,224,144],
+                [448,384,320,256,160],
+                [-1,-1,-1,-1,-1]
+            ];
+            var sampleRates = [
+                [44100,48000,32000],
+                [22050,24000,16000],
+                [11025,12000,8000]
+            ];
+
+            if (!fileData) {
+                fileData = {};
+            }
+            fileData.sampleRate = null;
+            fileData.bitRate = null;
+
+            var length = dataReader.getLength();
+            //max frame size is 996b so 4kb should be more than enough to find 3 frames
+            dataReader.loadRange([length-1024*6, length], function(success) {
+                if (!success) {
+                    callback(fileData);
+                    return;
+                }
+                var fileBytes = dataReader.getRawData(),
+                    bytesLength = fileBytes.length,
+                    frames = [];
+
+                for (var o = 0; o < bytesLength-4; o = o++) {
+
+                    if ((fileBytes.charCodeAt(o) & 0xFF) == 0xFF && (fileBytes.charCodeAt(o+1) & 0xE0) == 0xE0) {
+                        frames.push(fileBytes.substr(o, 4));
+                    }
+                    if (frames.length <= 3) { //verify at least 3 frames to make sure its an mp3
+                        o += 3;
+                        continue;
+                    }
+
+                    //loop through verified frames trying to get any information we can
+                    do {
+                        var header = frames.shift(),
+                            version = header.charCodeAt(1) & 0x18,
+                            layer = header.charCodeAt(1) & 0x06;
+
+                        //get sample rate
+                        var srIndex = (header.charCodeAt(2) & 0x0C) >> 2;
+                        switch (version) {
+                            case 0x18:
+                                fileData.sampleRate = sampleRates[0][srIndex];
+                                break;
+                            case 0x10:
+                                fileData.sampleRate = sampleRates[1][srIndex];
+                                break;
+                            case 0x00:
+                                fileData.sampleRate = sampleRates[2][srIndex];
+                                break;
+                        }
+
+                        //bit rate
+                        var brRow = (header.charCodeAt(2) & 0xF0) >> 4;
+                        if (brRow != 15 && brRow != 0) {
+                            if(version == 0x18 && layer == 0x06) {
+                                fileData.bitRate = bitRates[brRow][0];
+                            } else if(version == 0x18 && layer == 0x04) {
+                                fileData.bitRate = bitRates[brRow][1];
+                            } else if(version == 0x18 && layer == 0x02) {
+                                fileData.bitRate = bitRates[brRow][2];
+                            } else if((version == 0x10 || version == 0x00) && layer == 0x06) {
+                                fileData.bitRate = bitRates[brRow][3];
+                            } else if((version == 0x10 || version == 0x00) && (layer == 0x04 || layer == 0x02) ) {
+                                fileData.bitRate = bitRates[brRow][4];
+                            }
+                        }
+                    } while (frames.length && !fileData.bitRate && !fileData.sampleRate);
+
+                    break;
+                }
+                callback(fileData);
+            });
         },
         //calculates md5 of the audio portion
         calculateAudioHash: function(options) {
@@ -1134,7 +1231,6 @@
 
                                     if (dataReader.getStringAt(r, 3) !== "TAG") {
                                         bytes = dataReader.getRawData();
-                                        bytes = bytes.substring(3); //grooveshark hashing sucks
                                         abcd = jMd5.update(abcd, bytes);
                                     }
                                     cb(jMd5.finalize(abcd));
