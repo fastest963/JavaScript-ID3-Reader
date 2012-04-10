@@ -1117,7 +1117,7 @@
                         frames.push(fileBytes.substr(o, 4));
                     }
                     if (frames.length <= 3) { //verify at least 3 frames to make sure its an mp3
-                        o += 3;
+                        o += 4;
                         continue;
                     }
 
@@ -1156,7 +1156,7 @@
                                 fileData.bitRate = bitRates[brRow][4];
                             }
                         }
-                    } while (frames.length && !fileData.bitRate && !fileData.sampleRate);
+                    } while (frames.length && (!fileData.bitRate || !fileData.sampleRate));
 
                     break;
                 }
