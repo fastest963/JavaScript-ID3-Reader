@@ -1102,7 +1102,7 @@
 
             var length = dataReader.getLength();
             //max frame size is 996b so 4kb should be more than enough to find 3 frames
-            dataReader.loadRange([length-1024*6, length], function(success) {
+            dataReader.loadRange([length-1024*8, length], function(success) {
                 if (!success) {
                     callback(fileData);
                     return;
@@ -1116,10 +1116,12 @@
                     if ((fileBytes.charCodeAt(o) & 0xFF) == 0xFF && (fileBytes.charCodeAt(o+1) & 0xE0) == 0xE0) {
                         frames.push(fileBytes.substr(o, 4));
                     }
-                    if (frames.length <= 3) { //verify at least 3 frames to make sure its an mp3
+                    if (frames.length <= 4) { //verify at least 3 frames to make sure its an mp3
                         o += 3;
                         continue;
                     }
+                    //throw out the first result as it is sometimes wrong
+                    frames.shift();
 
                     //loop through verified frames trying to get any information we can
                     do {
