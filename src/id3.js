@@ -1111,13 +1111,13 @@
                     bytesLength = fileBytes.length,
                     frames = [];
 
-                for (var o = 0; o < bytesLength-4; o = o++) {
+                for (var o = 0; o < bytesLength-4; o++) {
 
                     if ((fileBytes.charCodeAt(o) & 0xFF) == 0xFF && (fileBytes.charCodeAt(o+1) & 0xE0) == 0xE0) {
                         frames.push(fileBytes.substr(o, 4));
                     }
                     if (frames.length <= 3) { //verify at least 3 frames to make sure its an mp3
-                        o += 4;
+                        o += 3;
                         continue;
                     }
 
