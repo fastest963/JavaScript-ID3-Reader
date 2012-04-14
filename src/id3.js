@@ -1089,9 +1089,10 @@
                 [-1,-1,-1,-1,-1]
             ];
             var sampleRates = [
-                [44100,48000,32000],
-                [22050,24000,16000],
-                [11025,12000,8000]
+                [11025,12000,8000], //mpeg 2.5
+                [0,0,0], //reserved
+                [22050,24000,16000], //mpeg 2
+                [44100,48000,32000] //mpeg 1
             ];
 
             if (!fileData) {
@@ -1114,49 +1115,37 @@
                 for (var o = 0; o < bytesLength-4; o++) {
 
                     if ((fileBytes.charCodeAt(o) & 0xFF) == 0xFF && (fileBytes.charCodeAt(o+1) & 0xE0) == 0xE0) {
-                        frames.push(fileBytes.substr(o, 4));
+                        //verify the header first
+                        var frameData = {};
+                        //header is AAAAAAAA AAABBCCD EEEEFFGH IIJJKLMM
+                        frameData.version = (fileBytes.charCodeAt(o+1) & 24) >> 3; //get BB (0 -> 3)
+                        frameData.layer = Math.abs(((fileBytes.charCodeAt(o+1) & 6) >> 1) - 4); //get CC (1 -> 3), then invert
+                        frameData.srIndex = (fileBytes.charCodeAt(o+2) & 12) >> 2; //get FF (0 -> 3)
+                        frameData.brRow = (fileBytes.charCodeAt(o+2) & 240) >> 4; //get EEEE (0 -> 15)
+                        if (frameData.version != 1 && frameData.layer > 0 && frameData.srIndex < 3 && frameData.brRow != 15 && frameData.brRow != 0) {
+                            //make sure frame is valid
+                            frames.push(frameData);
+                        }
+
                     }
-                    if (frames.length <= 4) { //verify at least 3 frames to make sure its an mp3
+                    if (frames.length < 5) { //verify at least 4 frames to make sure its an mp3
                         o += 3;
                         continue;
                     }
-                    //throw out the first result as it is sometimes wrong
+                    //the first one seems to be incorrect most of the time
                     frames.shift();
 
+                    var header = {};
                     //loop through verified frames trying to get any information we can
                     do {
-                        var header = frames.shift(),
-                            version = header.charCodeAt(1) & 0x18,
-                            layer = header.charCodeAt(1) & 0x06;
-
-                        //get sample rate
-                        var srIndex = (header.charCodeAt(2) & 0x0C) >> 2;
-                        switch (version) {
-                            case 0x18:
-                                fileData.sampleRate = sampleRates[0][srIndex];
-                                break;
-                            case 0x10:
-                                fileData.sampleRate = sampleRates[1][srIndex];
-                                break;
-                            case 0x00:
-                                fileData.sampleRate = sampleRates[2][srIndex];
-                                break;
-                        }
-
+                        header = frames.shift();
+                        //sample rate
+                        fileData.sampleRate = sampleRates[header.version][header.srIndex];
                         //bit rate
-                        var brRow = (header.charCodeAt(2) & 0xF0) >> 4;
-                        if (brRow != 15 && brRow != 0) {
-                            if(version == 0x18 && layer == 0x06) {
-                                fileData.bitRate = bitRates[brRow][0];
-                            } else if(version == 0x18 && layer == 0x04) {
-                                fileData.bitRate = bitRates[brRow][1];
-                            } else if(version == 0x18 && layer == 0x02) {
-                                fileData.bitRate = bitRates[brRow][2];
-                            } else if((version == 0x10 || version == 0x00) && layer == 0x06) {
-                                fileData.bitRate = bitRates[brRow][3];
-                            } else if((version == 0x10 || version == 0x00) && (layer == 0x04 || layer == 0x02) ) {
-                                fileData.bitRate = bitRates[brRow][4];
-                            }
+                        if (header.version & 1 == 1) {
+                            fileData.bitRate = bitRates[header.brRow][header.layer-1]; //v1 and l1,l2,l3
+                        } else {
+                            fileData.bitRate = bitRates[header.brRow][(header.layer & 2 >> 1)+3]; //v2 and l1 or l2/l3 (3 is the offset in the arrays)
                         }
                     } while (frames.length && (!fileData.bitRate || !fileData.sampleRate));
 
