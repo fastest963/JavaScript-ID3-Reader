@@ -1102,52 +1102,62 @@
             fileData.bitRate = null;
 
             var length = dataReader.getLength();
-            //max frame size is 996b so 4kb should be more than enough to find 3 frames
-            dataReader.loadRange([length-1024*8, length], function(success) {
+            dataReader.loadRange([length-1024*16, length], function(success) {
                 if (!success) {
                     callback(fileData);
                     return;
                 }
                 var fileBytes = dataReader.getRawData(),
                     bytesLength = fileBytes.length,
-                    frames = [];
+                    frames = [],
+                    lastFrameVerify, brRow, srIndex;
 
-                for (var o = 0; o < bytesLength-4; o++) {
+                for (var o = 0; o < bytesLength-4; o++) { //just skip the possible ID3 tags from the end
 
-                    if ((fileBytes.charCodeAt(o) & 0xFF) == 0xFF && (fileBytes.charCodeAt(o+1) & 0xE0) == 0xE0) {
+                    if ((fileBytes.charCodeAt(o) & 0xFF) == 255 && (fileBytes.charCodeAt(o+1) & 224) == 224) {
+
                         //verify the header first
                         var frameData = {};
                         //header is AAAAAAAA AAABBCCD EEEEFFGH IIJJKLMM
                         frameData.version = (fileBytes.charCodeAt(o+1) & 24) >> 3; //get BB (0 -> 3)
                         frameData.layer = Math.abs(((fileBytes.charCodeAt(o+1) & 6) >> 1) - 4); //get CC (1 -> 3), then invert
-                        frameData.srIndex = (fileBytes.charCodeAt(o+2) & 12) >> 2; //get FF (0 -> 3)
-                        frameData.brRow = (fileBytes.charCodeAt(o+2) & 240) >> 4; //get EEEE (0 -> 15)
-                        if (frameData.version != 1 && frameData.layer > 0 && frameData.srIndex < 3 && frameData.brRow != 15 && frameData.brRow != 0) {
-                            //make sure frame is valid
-                            frames.push(frameData);
-                        }
+                        srIndex = (fileBytes.charCodeAt(o+2) & 12) >> 2; //get FF (0 -> 3)
+                        brRow = (fileBytes.charCodeAt(o+2) & 240) >> 4; //get EEEE (0 -> 15)
+                        frameData.padding = (fileBytes.charCodeAt(o+2) & 2) >> 1; //get G
 
+                        if (frameData.version != 1 && frameData.layer > 0 && srIndex < 3 && brRow != 15 && brRow != 0 &&
+                            (!lastFrameVerify || lastFrameVerify === fileBytes.charCodeAt(o+1))) {
+                            //frame header is valid
+                            frameData.sampleRate = sampleRates[frameData.version][srIndex];
+                            if ((frameData.version & 1) == 1) {
+                                frameData.bitRate = bitRates[brRow][frameData.layer-1]; //v1 and l1,l2,l3
+                            } else {
+                                frameData.bitRate = bitRates[brRow][(frameData.layer & 2 >> 1)+3]; //v2 and l1 or l2/l3
+                            }
+
+                            if (frameData.layer == 1) {
+                                frameData.frameLength = (12 * frameData.bitRate * 1000 / frameData.sampleRate + frameData.padding) * 4;
+                            } else {
+                                frameData.frameLength = 144 * frameData.bitRate * 1000 / frameData.sampleRate + frameData.padding;
+                            }
+
+                            //frame header is valid
+                            frames.push(frameData);
+                            lastFrameVerify = fileBytes.charCodeAt(o+1);
+                            o += Math.floor(frameData.frameLength - 1);
+                        } else {
+                            frames = [];
+                            lastFrameVerify = null;
+                        }
                     }
-                    if (frames.length < 5) { //verify at least 4 frames to make sure its an mp3
-                        o += 3;
+                    if (frames.length < 3) { //verify at least 2 frames in a row to make sure its an mp3
                         continue;
                     }
-                    //the first one seems to be incorrect most of the time
-                    frames.shift();
 
-                    var header = {};
-                    //loop through verified frames trying to get any information we can
-                    do {
-                        header = frames.shift();
-                        //sample rate
-                        fileData.sampleRate = sampleRates[header.version][header.srIndex];
-                        //bit rate
-                        if (header.version & 1 == 1) {
-                            fileData.bitRate = bitRates[header.brRow][header.layer-1]; //v1 and l1,l2,l3
-                        } else {
-                            fileData.bitRate = bitRates[header.brRow][(header.layer & 2 >> 1)+3]; //v2 and l1 or l2/l3 (3 is the offset in the arrays)
-                        }
-                    } while (frames.length && (!fileData.bitRate || !fileData.sampleRate));
+                    var header = frames.pop();
+                    fileData.sampleRate = header.sampleRate;
+                    fileData.bitRate = header.bitRate;
+                    //this is where you would return more data if you needed it (like padding, frameLength, etc)
 
                     break;
                 }
