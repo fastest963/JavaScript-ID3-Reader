@@ -773,8 +773,12 @@
                     var ids = this._shortcuts[name];
                     for (var i = 0, l = ids.length; i < l; i++) {
                         if (ids[i] && foundTags[ids[i]]) {
-                            foundTags[name] = foundTags[ids[i]];
-                            break;
+                            //don't replace, only add if not already there
+                            if (!foundTags[name]) {
+                                foundTags[name] = foundTags[ids[i]];
+                            }
+
+                            delete foundTags[ids[i]];
                         }
                     }
                 }
@@ -1085,8 +1089,7 @@
                 [352,224,192,176,112],
                 [384,256,224,192,128],
                 [416,320,256,224,144],
-                [448,384,320,256,160],
-                [-1,-1,-1,-1,-1]
+                [448,384,320,256,160]
             ];
             var sampleRates = [
                 [11025,12000,8000], //mpeg 2.5
