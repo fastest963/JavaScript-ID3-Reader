@@ -963,6 +963,14 @@
             reader.onloadend = function(e) {
                 if (e.target.readyState == FileReader.DONE) {
                     data = e.target.result;
+                    if (window.ArrayBuffer && data instanceof window.ArrayBuffer) {
+                        data = new Uint8Array(data);
+                        data.charCodeAt = function(offset) { return this[offset]; };
+                        if (typeof data.charCodeAt !== "function") { //FF can't do this
+                            //instead convert to string
+                            data = String.fromCharCode.apply(null, data); //IE can't do this
+                        }
+                    }
                     loaded = [range[0], range[0] + data.length];
                     if (callback) {
                         callback(true);
@@ -994,8 +1002,11 @@
             }
 
             try {
-                //note this is deprecated according to spec
-                reader.readAsBinaryString(blob);
+                if (window.ArrayBuffer && typeof reader.readAsArrayBuffer === "function") {
+                    reader.readAsArrayBuffer(blob);
+                } else {
+                    reader.readAsBinaryString(blob);
+                }
             } catch (e) {
                 if (callback) {
                     callback(false);
