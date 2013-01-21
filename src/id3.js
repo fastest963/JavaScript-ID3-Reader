@@ -1243,11 +1243,6 @@
                                         }
                                         return;
                                     }
-
-                                    if (dataReader.getStringAt(r, 3) !== "TAG") {
-                                        bytes = dataReader.getRawData();
-                                        abcd = jMd5.update(abcd, bytes);
-                                    }
                                     cb(jMd5.finalize(abcd));
                                 });
                             }
