@@ -797,6 +797,16 @@
      * Modified by James Hartig <james.hartig@grooveshark.com>
      */
 
+    var arrayCharCodeAt = function(offset) { return this[offset];},
+        arraySubString = function(start, end) {
+            var str = "";
+            if (!end) { end = this.length; }
+            for (;start < end; start++) {
+                str += this[start];
+            }
+            return str;
+        };
+
     var BinaryFile = function(file, strData) {
 
         var data = strData || "",
@@ -965,10 +975,16 @@
                     data = e.target.result;
                     if (window.ArrayBuffer && data instanceof window.ArrayBuffer) {
                         data = new Uint8Array(data);
-                        data.charCodeAt = function(offset) { return this[offset]; };
-                        if (typeof data.charCodeAt !== "function") { //FF can't do this
-                            //instead convert to string
-                            data = String.fromCharCode.apply(null, data); //IE can't do this
+
+                        //add methods to emulate a string
+                        data.substring = arraySubString;
+                        if (typeof data.substring !== "function") { //FF still needs to use proto instead
+                            data.__proto__.substring = arraySubString;
+                        }
+
+                        data.charCodeAt = arrayCharCodeAt;
+                        if (typeof data.charCodeAt !== "function") { //FF still needs to use proto instead
+                            data.__proto__.charCodeAt = arrayCharCodeAt;
                         }
                     }
                     loaded = [range[0], range[0] + data.length];
