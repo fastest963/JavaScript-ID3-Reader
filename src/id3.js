@@ -1,4 +1,3 @@
-
 (function() {
 
     /*
@@ -657,11 +656,19 @@
                         frameHeaderSize = 6;
                         break;
                     case 3:
+                        //check to see if frameID has a null byte at the end because the frameID was only 3 chars
+                        if (frameID.charCodeAt(3) === 0) {
+                            frameID = frameID.substr(0, 3);
+                        }
                         frameID = dataReader.getStringAt(frameDataOffset, 4);
                         frameSize = dataReader.getLongAt(frameDataOffset + 4, true);
                         frameHeaderSize = 10;
                         break;
                     case 4:
+                        //check to see if frameID has a null byte at the end because the frameID was only 3 chars
+                        if (frameID.charCodeAt(3) === 0) {
+                            frameID = frameID.substr(0, 3);
+                        }
                         frameID = dataReader.getStringAt(frameDataOffset, 4);
                         frameSize = this._readSynchsafeInteger32At(frameDataOffset + 4, dataReader);
                         frameHeaderSize = 10;
