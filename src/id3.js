@@ -1147,14 +1147,14 @@
                 var fileBytes = dataReader.getRawData(),
                     bytesLength = fileBytes.length,
                     frames = [],
-                    lastFrameVerify, brRow, srIndex;
+                    lastFrameVerify, brRow, srIndex, slotsPerFrame, frameData;
 
                 for (var o = 0; o < bytesLength-4; o++) { //just skip the possible ID3 tags from the end
 
                     if ((fileBytes.charCodeAt(o) & 0xFF) == 255 && (fileBytes.charCodeAt(o+1) & 224) == 224) {
 
                         //verify the header first
-                        var frameData = {};
+                        frameData = {};
                         //header is AAAAAAAA AAABBCCD EEEEFFGH IIJJKLMM
                         frameData.version = (fileBytes.charCodeAt(o+1) & 24) >> 3; //get BB (0 -> 3)
                         frameData.layer = Math.abs(((fileBytes.charCodeAt(o+1) & 6) >> 1) - 4); //get CC (1 -> 3), then invert
@@ -1162,26 +1162,28 @@
                         brRow = (fileBytes.charCodeAt(o+2) & 240) >> 4; //get EEEE (0 -> 15)
                         frameData.padding = (fileBytes.charCodeAt(o+2) & 2) >> 1; //get G
 
-                        if (frameData.version != 1 && frameData.layer > 0 && srIndex < 3 && brRow != 15 && brRow != 0 &&
+                        if (frameData.version !== 1 && frameData.layer > 0 && srIndex < 3 && brRow != 15 && brRow != 0 &&
                             (!lastFrameVerify || lastFrameVerify === fileBytes.charCodeAt(o+1))) {
                             //frame header is valid
                             frameData.sampleRate = sampleRates[frameData.version][srIndex];
-                            if ((frameData.version & 1) == 1) {
+                            if ((frameData.version & 1) === 1) {
                                 frameData.bitRate = bitRates[brRow][frameData.layer-1]; //v1 and l1,l2,l3
-                            } else {
+                            } else { //LSF
                                 frameData.bitRate = bitRates[brRow][(frameData.layer & 2 >> 1)+3]; //v2 and l1 or l2/l3
                             }
 
-                            if (frameData.layer == 1) {
+                            if (frameData.layer === 1) {
                                 frameData.frameLength = (12 * frameData.bitRate * 1000 / frameData.sampleRate + frameData.padding) * 4;
                             } else {
-                                frameData.frameLength = 144 * frameData.bitRate * 1000 / frameData.sampleRate + frameData.padding;
+                                //if frame is LSF then slots are only 72 instead of 144
+                                slotsPerFrame = (frameData.layer === 3 && (frameData.version & ~1) === frameData.version) ? 72 : 144;
+                                frameData.frameLength = (slotsPerFrame * frameData.bitRate * 1000 / frameData.sampleRate) + frameData.padding;
                             }
 
                             //frame header is valid
                             frames.push(frameData);
                             lastFrameVerify = fileBytes.charCodeAt(o+1);
-                            o += Math.floor(frameData.frameLength - 1);
+                            o += Math.floor(frameData.frameLength) - 1; //substract because next loop will add
                         } else {
                             frames = [];
                             lastFrameVerify = null;
