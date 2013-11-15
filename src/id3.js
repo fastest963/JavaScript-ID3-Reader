@@ -1147,6 +1147,8 @@
                 var fileBytes = dataReader.getRawData(),
                     bytesLength = fileBytes.length,
                     frames = [],
+                    frameCount = 0,
+                    totalBitRate = 0,
                     lastFrameVerify, brRow, srIndex, slotsPerFrame, frameData;
 
                 for (var o = 0; o < bytesLength-4; o++) { //just skip the possible ID3 tags from the end
@@ -1181,24 +1183,26 @@
                             }
 
                             //frame header is valid
+                            totalBitRate += frameData.bitRate;
                             frames.push(frameData);
+                            frameCount++;
                             lastFrameVerify = fileBytes.charCodeAt(o+1);
                             o += Math.floor(frameData.frameLength) - 1; //substract because next loop will add
                         } else {
                             frames = [];
+                            frameCount = 0;
                             lastFrameVerify = null;
                         }
                     }
-                    if (frames.length < 3) { //verify at least 2 frames in a row to make sure its an mp3
-                        continue;
+                    if (frameCount >= 25) { //after we've looked at 25 frames, we most likely have enough data
+                        break;
                     }
-
-                    var header = frames.pop();
+                }
+                if (frameCount > 3) { //make sure we have at least 3 frames
+                    var header = frames.shift();
                     fileData.sampleRate = header.sampleRate;
-                    fileData.bitRate = header.bitRate;
                     //this is where you would return more data if you needed it (like padding, frameLength, etc)
-
-                    break;
+                    fileData.bitRate = Math.ceil(totalBitRate / frameCount);
                 }
                 callback(fileData);
             });
