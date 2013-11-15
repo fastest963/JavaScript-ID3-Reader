@@ -1075,8 +1075,6 @@
                         data = dataReader.getStringAt(offset, 3);
                         if (data == "TAG") {
                             callback(ID3v1);
-                        } else if (errback) {
-                            errback('unsupported');
                         } else {
                             callback(null);
                         }
@@ -1087,25 +1085,23 @@
         loadTags: function(options) {
             var dataReader = options.dataReader || new BinaryFile(options.file, options.stringData),
                 getFileData = this._getFileData;
-            this._loadFile(dataReader, function(idReader) {
-                if (!idReader) { //failed to read
-                    //error would've been called in _loadFile if there was one
+            function processFileData(tags) {
+                getFileData(dataReader, tags, function(fileData) {
                     if (options.success) {
-                        options.success({});
+                        options.success(fileData);
                     }
+                });
+            }
+            this._loadFile(dataReader, function(idReader) {
+                if (!idReader) { //failed to read ID3 but we should still try to process the file data
+                    processFileData({});
                     return;
                 }
 
                 idReader.loadData(dataReader, function() {
-                    var tags = idReader.readTagsFromData(dataReader, options.tags);
-                    getFileData(dataReader, tags, function(fileData) {
-                        if (options.success) {
-                            options.success(fileData);
-                        }
-                    });
+                    processFileData(idReader.readTagsFromData(dataReader, options.tags));
                 });
             }, options.error);
-
         },
         _getFileData: function(dataReader, fileData, callback) {
             var bitRates = [
