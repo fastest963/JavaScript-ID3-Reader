@@ -1145,7 +1145,8 @@
                     frames = [],
                     frameCount = 0,
                     totalBitRate = 0,
-                    lastFrameVerify, brRow, srIndex, slotsPerFrame, frameData;
+                    lastFrameVerify = null,
+                    brRow, srIndex, slotsPerFrame, frameData;
 
                 for (var o = 0; o < bytesLength-4; o++) { //just skip the possible ID3 tags from the end
 
@@ -1159,9 +1160,10 @@
                         srIndex = (fileBytes.charCodeAt(o+2) & 12) >> 2; //get FF (0 -> 3)
                         brRow = (fileBytes.charCodeAt(o+2) & 240) >> 4; //get EEEE (0 -> 15)
                         frameData.padding = (fileBytes.charCodeAt(o+2) & 2) >> 1; //get G
+                        frameData.verify = (fileBytes.charCodeAt(o+1) & 31) << 2 + srIndex; // ABBCCD and combined with FF: ABBCCDFF
 
                         if (frameData.version !== 1 && frameData.layer > 0 && srIndex < 3 && brRow != 15 && brRow != 0 &&
-                            (!lastFrameVerify || lastFrameVerify === fileBytes.charCodeAt(o+1))) {
+                            (lastFrameVerify === null || lastFrameVerify === frameData.verify)) {
                             //frame header is valid
                             frameData.sampleRate = sampleRates[frameData.version][srIndex];
                             if ((frameData.version & 1) === 1) {
@@ -1182,7 +1184,7 @@
                             totalBitRate += frameData.bitRate;
                             frames.push(frameData);
                             frameCount++;
-                            lastFrameVerify = fileBytes.charCodeAt(o+1);
+                            lastFrameVerify = frameData.verify;
                             o += Math.floor(frameData.frameLength) - 1; //substract because next loop will add
                         } else {
                             frames = [];
