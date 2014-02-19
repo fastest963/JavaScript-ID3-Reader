@@ -1189,6 +1189,7 @@
                         } else {
                             frames = [];
                             frameCount = 0;
+                            totalBitRate = 0;
                             lastFrameVerify = null;
                         }
                     }
