@@ -1145,12 +1145,13 @@
                     frames = [],
                     frameCount = 0,
                     totalBitRate = 0,
+                    lastFrameLength = 0,
                     lastFrameVerify = null,
                     brRow, srIndex, slotsPerFrame, frameData;
 
                 for (var o = 0; o < bytesLength-4; o++) { //just skip the possible ID3 tags from the end
 
-                    if ((fileBytes.charCodeAt(o) & 0xFF) == 255 && (fileBytes.charCodeAt(o+1) & 224) == 224) {
+                    if ((fileBytes.charCodeAt(o) & 0xFF) == 255 && (fileBytes.charCodeAt(o+1) & 0xE0) == 224) {
 
                         //verify the header first
                         frameData = {};
@@ -1185,12 +1186,17 @@
                             frames.push(frameData);
                             frameCount++;
                             lastFrameVerify = frameData.verify;
-                            o += Math.floor(frameData.frameLength) - 1; //substract because next loop will add
+                            lastFrameLength = Math.floor(frameData.frameLength);
+                            o += lastFrameLength - 1; //substract one because next loop will add one
                         } else {
                             frames = [];
                             frameCount = 0;
                             totalBitRate = 0;
                             lastFrameVerify = null;
+                            if (lastFrameLength > 0) {
+                                o -= lastFrameLength + 1; //substract one because next loop will add one
+                                lastFrameLength = 0; //only backtrack once
+                            }
                         }
                     }
                     if (frameCount >= 25) { //after we've looked at 25 frames, we most likely have enough data
