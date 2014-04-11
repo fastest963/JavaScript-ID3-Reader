@@ -1194,7 +1194,7 @@
                             totalBitRate = 0;
                             lastFrameVerify = null;
                             if (lastFrameLength > 0) {
-                                o -= lastFrameLength + 1; //substract one because next loop will add one
+                                o -= lastFrameLength; //don't subtract one otherwise we'll go back to the same spot we were at last time we looped
                                 lastFrameLength = 0; //only backtrack once
                             }
                         }
