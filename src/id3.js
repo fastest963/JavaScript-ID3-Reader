@@ -1318,7 +1318,7 @@
         window.ID3 = ID3Wrapper;
 
         if (typeof define == 'function' && typeof define.amd == 'object' && define.amd) {
-            define(function() { return ID3Wrapper; });
+            define('id3', function() { return ID3Wrapper; });
         }
     }
 
