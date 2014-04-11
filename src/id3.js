@@ -1,4 +1,4 @@
-(function() {
+(function(window) {
 
     /*
      * jMd5
@@ -1048,7 +1048,7 @@
      * Modified by James Hartig <james.hartig@grooveshark.com>
      */
 
-    window.ID3 = {
+    var ID3Wrapper = {
         _loadFile: function(dataReader, callback, errback) {
             //load the format identifier
             //preload the first 10 bytes for id3v2
@@ -1312,4 +1312,14 @@
         }
     };
 
-})();
+    if (typeof module !== "undefined") {
+        module.exports = ID3Wrapper;
+    } else {
+        window.ID3 = ID3Wrapper;
+
+        if (typeof define == 'function' && typeof define.amd == 'object' && define.amd) {
+            define(function() { return ID3Wrapper; });
+        }
+    }
+
+})(this);
