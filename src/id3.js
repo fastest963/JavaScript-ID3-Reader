@@ -809,7 +809,7 @@
             var str = "";
             if (!end) { end = this.length; }
             for (;start < end; start++) {
-                str += this[start];
+                str += String.fromCharCode(this[start]);
             }
             return str;
         };
