@@ -1087,6 +1087,12 @@
                 getFileData = this._getFileData;
             function processFileData(tags) {
                 getFileData(dataReader, tags, function(fileData) {
+                    if (!fileData || !fileData.framesInspected) {
+                        if (options.error) {
+                            options.error('invalidmp3');
+                        }
+                        return;
+                    }
                     if (options.success) {
                         options.success(fileData);
                     }
@@ -1133,6 +1139,7 @@
             }
             fileData.sampleRate = null;
             fileData.bitRate = null;
+            fileData.framesInspected = 0;
 
             var length = dataReader.getLength();
             dataReader.loadRange([length-1024*16, length], function(success) {
@@ -1203,6 +1210,7 @@
                         break;
                     }
                 }
+                fileData.framesInspected = frameCount;
                 if (frameCount > 3) { //make sure we have at least 3 frames
                     var header = frames.shift();
                     fileData.sampleRate = header.sampleRate;
