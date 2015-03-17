@@ -1104,7 +1104,7 @@
                 }
                 return;
             } else if (!options.bytesToRead) {
-                options.bytesToRead = 16 * 1024;
+                options.bytesToRead = 64 * 1024;
             }
             if (options.maxFrames && (typeof options.maxFrames !== 'number' || isNaN(options.maxFrames) || options.maxFrames < 1)) {
                 if (options.error) {
@@ -1112,7 +1112,7 @@
                 }
                 return;
             } else if (!options.maxFrames) {
-                options.maxFrames = 25;
+                options.maxFrames = 50;
             }
             this._loadFile(dataReader, function(idReader) {
                 if (!idReader) { //failed to read ID3 but we should still try to process the file data
