@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>Upload your MP3</title>
+    <script type="text/javascript" src="https://rawgit.com/fastest963/JavaScript-ID3-Reader/master/src/id3.js"></script>
+</head>
+<body>
+
+<input id="upload" type="file" accept="audio/*" />
+
+<p id="results"></p>
+
+<script type="text/javascript">
+
+    function showResults(result) {
+        document.getElementById('results').innerHTML = result;
+    }
+
+    document.getElementById('upload').onchange = function(ev) {
+        var el = ev.currentTarget,
+            files = ev.target.files,
+            file;
+
+        if (!files && el.value) {
+            //create a fake object for IE9
+            files = [{name: el.value, type: ''}];
+        } else if (!files || !files.length) {
+            showResults('No files uploaded');
+            return;
+        }
+        file = files[0];
+        if (!file || !file.name) {
+            showResults('Invalid file uploaded');
+            return;
+        }
+        if (file.type && file.type !== "audio/mp3" && file.type !== "audio/mpeg") {
+            showResults('Filetype ' + file.type + ' not supported');
+            return;
+        }
+
+        showResults('Processing...');
+        ID3.loadTags({
+            file: file,
+            tags: {title: 1, artist: 1, album: 1, track: 1, year: 1},
+            success: function(metadata) {
+                el.value = '';
+                console.log(metadata);
+                var sampleRate = metadata.sampleRate || 'unknown',
+                    bitRate = metadata.bitRate || 'unknown',
+                    frames = metadata.framesInspected || '0',
+                    result = [];
+                result.push('Sample Rate: ' + sampleRate);
+                result.push('Bit Rate: ' + bitRate);
+                result.push('# Frames Inspected: ' + frames);
+                showResults(result.join('<br />'));
+            },
+            error: function(error) {
+                el.value = '';
+                if (error === 'readerror') {
+                    showResults('Error reading file.');
+                } else if (error) {
+                    showResults('Error: ' + error);
+                } else {
+                    showResults('Unknown error. Please send/post mp3 for inspection. Check console for errors.');
+                }
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
