@@ -1048,8 +1048,6 @@
      * Modified by James Hartig <james.hartig@grooveshark.com>
      */
 
-    var inspectionLength = 1024 * 16;
-
     var ID3Wrapper = {
         _loadFile: function(dataReader, callback, errback) {
             //load the format identifier
@@ -1088,7 +1086,7 @@
             var dataReader = options.dataReader || new BinaryFile(options.file, options.stringData),
                 getFileData = this._getFileData;
             function processFileData(tags) {
-                getFileData(dataReader, tags, function(fileData) {
+                getFileData(dataReader, tags, options.bytesToRead, options.maxFrames, function(fileData) {
                     if (!fileData || !fileData.framesInspected) {
                         if (options.error) {
                             options.error('invalidmp3');
@@ -1099,6 +1097,22 @@
                         options.success(fileData);
                     }
                 });
+            }
+            if (options.bytesToRead && (typeof options.bytesToRead !== 'number' || isNaN(options.bytesToRead) || options.bytesToRead < 1)) {
+                if (options.error) {
+                    options.error('invalidbytes');
+                }
+                return;
+            } else if (!options.bytesToRead) {
+                options.bytesToRead = 16 * 1024;
+            }
+            if (options.maxFrames && (typeof options.maxFrames !== 'number' || isNaN(options.maxFrames) || options.maxFrames < 1)) {
+                if (options.error) {
+                    options.error('invalidframes');
+                }
+                return;
+            } else if (!options.maxFrames) {
+                options.maxFrames = 25;
             }
             this._loadFile(dataReader, function(idReader) {
                 if (!idReader) { //failed to read ID3 but we should still try to process the file data
@@ -1111,7 +1125,7 @@
                 });
             }, options.error);
         },
-        _getFileData: function(dataReader, fileData, callback) {
+        _getFileData: function(dataReader, fileData, numBytes, maxFrames, callback) {
             var bitRates = [
                 [0,0,0,0,0],
                 [32,32,32,32,8],
@@ -1144,7 +1158,7 @@
             fileData.framesInspected = 0;
 
             var length = dataReader.getLength();
-            dataReader.loadRange([length - inspectionLength, length], function(success) {
+            dataReader.loadRange([length - numBytes, length], function(success) {
                 if (!success) {
                     callback(fileData);
                     return;
@@ -1208,12 +1222,12 @@
                             }
                         }
                     }
-                    if (frameCount >= 25) { //after we've looked at 25 frames, we most likely have enough data
+                    if (frameCount >= maxFrames) { //after we've looked at 25 frames, we most likely have enough data
                         break;
                     }
                 }
                 fileData.framesInspected = frameCount;
-                if (frameCount > 3 || (length < inspectionLength && o >= (bytesLength - 4))) { //make sure we have at least 3 frames or end of file
+                if (frameCount > 3 || (length < numBytes && o >= (bytesLength - 4))) { //make sure we have at least 3 frames or end of file
                     var header = frames.shift();
                     fileData.sampleRate = header.sampleRate;
                     //this is where you would return more data if you needed it (like padding, frameLength, etc)
