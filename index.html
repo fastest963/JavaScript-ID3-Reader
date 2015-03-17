@@ -7,7 +7,11 @@
 </head>
 <body>
 
-<input id="upload" type="file" accept="audio/*" />
+<p><input id="upload" type="file" accept="audio/*"></p>
+
+<p><input type="text" id="num-kb" value="16" size="3"> kilobytes to load</p>
+
+<p><input type="text" id="num-frames" value="25" size="3"> frames to inspect</p>
 
 <p id="results"></p>
 
@@ -19,8 +23,8 @@
 
     document.getElementById('upload').onchange = function(ev) {
         var el = ev.currentTarget,
-            files = ev.target.files,
-            file;
+                files = ev.target.files,
+                start, file;
 
         if (!files && el.value) {
             //create a fake object for IE9
@@ -39,20 +43,33 @@
             return;
         }
 
+        if (window.performance) {
+            start = window.performance.now();
+        } else {
+            start = +(new Date())
+        }
         showResults('Processing...');
         ID3.loadTags({
             file: file,
             tags: {title: 1, artist: 1, album: 1, track: 1, year: 1},
+            bytesToRead: (+document.getElementById('num-kb').value) * 1024,
+            maxFrames: +document.getElementById('num-frames').value,
             success: function(metadata) {
                 el.value = '';
                 console.log(metadata);
                 var sampleRate = metadata.sampleRate || 'unknown',
-                    bitRate = metadata.bitRate || 'unknown',
-                    frames = metadata.framesInspected || '0',
-                    result = [];
+                        bitRate = metadata.bitRate || 'unknown',
+                        frames = metadata.framesInspected || '0',
+                        result = [], end;
                 result.push('Sample Rate: ' + sampleRate);
                 result.push('Bit Rate: ' + bitRate);
                 result.push('# Frames Inspected: ' + frames);
+                if (window.performance) {
+                    end = window.performance.now();
+                } else {
+                    end = +(new Date())
+                }
+                result.push('Took ms: ' + (end - start));
                 showResults(result.join('<br />'));
             },
             error: function(error) {
@@ -66,7 +83,7 @@
                 }
             }
         });
-    }
+    };
 </script>
 
 </body>
