@@ -1048,6 +1048,8 @@
      * Modified by James Hartig <james.hartig@grooveshark.com>
      */
 
+    var inspectionLength = 1024 * 16;
+
     var ID3Wrapper = {
         _loadFile: function(dataReader, callback, errback) {
             //load the format identifier
@@ -1142,7 +1144,7 @@
             fileData.framesInspected = 0;
 
             var length = dataReader.getLength();
-            dataReader.loadRange([length-1024*16, length], function(success) {
+            dataReader.loadRange([length - inspectionLength, length], function(success) {
                 if (!success) {
                     callback(fileData);
                     return;
@@ -1156,7 +1158,7 @@
                     lastFrameVerify = null,
                     brRow, srIndex, slotsPerFrame, frameData;
 
-                for (var o = 0; o < bytesLength-4; o++) { //just skip the possible ID3 tags from the end
+                for (var o = 0; o < bytesLength - 4; o++) { //the header is 4 bytes so make sure we at least have that
 
                     if ((fileBytes.charCodeAt(o) & 0xFF) == 255 && (fileBytes.charCodeAt(o+1) & 0xE0) == 224) {
 
@@ -1211,7 +1213,7 @@
                     }
                 }
                 fileData.framesInspected = frameCount;
-                if (frameCount > 3) { //make sure we have at least 3 frames
+                if (frameCount > 3 || (length < inspectionLength && o >= (bytesLength - 4))) { //make sure we have at least 3 frames or end of file
                     var header = frames.shift();
                     fileData.sampleRate = header.sampleRate;
                     //this is where you would return more data if you needed it (like padding, frameLength, etc)
